@@ -1,0 +1,8 @@
+build/
+*.svg
+icons_script*
+*.png
+settings.h
+.DS_Store
+build/
+.build/
