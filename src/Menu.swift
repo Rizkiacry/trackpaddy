@@ -3,17 +3,16 @@ import Cocoa
 import SwiftUI
 
 enum Theme {
-    static let bg = Color(red: 27 / 255, green: 23 / 255, blue: 25 / 255)
-    static let bgTop = Color(red: 39 / 255, green: 30 / 255, blue: 36 / 255)
-    static let panel = Color(red: 42 / 255, green: 34 / 255, blue: 40 / 255)
-    static let panelHi = Color(red: 53 / 255, green: 43 / 255, blue: 50 / 255)
-    static let stroke = Color(red: 62 / 255, green: 51 / 255, blue: 59 / 255)
-    static let pink = Color(red: 255 / 255, green: 102 / 255, blue: 171 / 255)
-    static let pinkDark = Color(red: 204 / 255, green: 79 / 255, blue: 136 / 255)
-    static let text = Color(red: 243 / 255, green: 235 / 255, blue: 239 / 255)
-    static let textDim = Color(red: 154 / 255, green: 140 / 255, blue: 148 / 255)
+    static let bg = Color(red: 27 / 255, green: 39 / 255, blue: 25 / 255)
+    static let bgTop = Color(red: 30 / 255, green: 54 / 255, blue: 36 / 255)
+    static let panel = Color(red: 32 / 255, green: 52 / 255, blue: 36 / 255)
+    static let panelHi = Color(red: 43 / 255, green: 53 / 255, blue: 50 / 255)
+    static let stroke = Color(red: 51 / 255, green: 62 / 255, blue: 59 / 255)
+    static let green = Color(red: 102 / 255, green: 255 / 255, blue: 102 / 255)
+    static let greenDark = Color(red: 79 / 255, green: 204 / 255, blue: 79 / 255)
+    static let text = Color(red: 235 / 255, green: 243 / 255, blue: 239 / 255)
+    static let textDim = Color(red: 140 / 255, green: 154 / 255, blue: 148 / 255)
 }
-
 enum Torus {
     static func font(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         let name: String
@@ -105,13 +104,13 @@ struct NumberSlider<V: BinaryFloatingPoint>: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [Theme.pink, Theme.pinkDark],
+                            colors: [Theme.green, Theme.greenDark],
                             startPoint: .leading, endPoint: .trailing)
                     )
                     .frame(width: x, height: trackHeight)
                 Circle()
                     .fill(Color.white)
-                    .overlay(Circle().strokeBorder(Theme.pink, lineWidth: 2))
+                    .overlay(Circle().strokeBorder(Theme.green, lineWidth: 2))
                     .frame(width: knob, height: knob)
                     .shadow(color: .black.opacity(0.35), radius: dragging ? 3 : 1, y: 1)
                     .scaleEffect(dragging ? 1.18 : 1)
@@ -178,7 +177,7 @@ struct NumberField<V: BinaryFloatingPoint, F: Hashable>: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(isFocused ? Theme.pink : Theme.stroke, lineWidth: 1)
+                        .strokeBorder(isFocused ? Theme.green : Theme.stroke, lineWidth: 1)
                 )
                 .focused(focusedField, equals: fieldId)
                 .onAppear {
@@ -235,7 +234,7 @@ struct TPRegionEditor: View {
                 //         usePercentage ? rect.height * 100 : rect.height)
                 // )
                 // .font(Torus.font(9, weight: .medium))
-                // .foregroundColor(Theme.pink)
+                // .foregroundColor(Theme.green)
             }
             .foregroundColor(Theme.textDim)
 
@@ -265,9 +264,9 @@ struct TPRegionEditor: View {
                         .position(x: offX + box.width / 2, y: offY + box.height / 2)
 
                         ZStack {
-                            RoundedRectangle(cornerRadius: 3).fill(Theme.pink.opacity(0.2))
+                            RoundedRectangle(cornerRadius: 3).fill(Theme.green.opacity(0.2))
                             RoundedRectangle(cornerRadius: 3).strokeBorder(
-                                Theme.pink, lineWidth: 1.5)
+                                Theme.green, lineWidth: 1.5)
                         }
                         .frame(width: r.width, height: r.height)
                         .position(x: r.midX, y: r.midY)
@@ -315,7 +314,7 @@ struct TPRegionEditor: View {
         let p = handlePoint(corner, r)
         return Circle()
             .fill(Color.white)
-            .overlay(Circle().strokeBorder(Theme.pink, lineWidth: 1.5))
+            .overlay(Circle().strokeBorder(Theme.green, lineWidth: 1.5))
             .frame(width: handle, height: handle)
             .shadow(color: .black.opacity(0.3), radius: 1, y: 1)
             .position(x: p.x, y: p.y)
@@ -398,13 +397,13 @@ struct TPToggle: ToggleStyle {
             Spacer()
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Theme.pink)
+                    .fill(Theme.green)
                     .frame(width: configuration.isOn ? 47 : 36, height: 20)
                     .opacity(configuration.isOn ? 1 : 0)
                     .scaleEffect(configuration.isOn ? 1 : 0.55)
 
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Theme.pink, lineWidth: 2)
+                    .strokeBorder(Theme.green, lineWidth: 2)
                     .frame(width: configuration.isOn ? 47 : 36, height: 20)
             }
             .animation(.spring(response: 0.2, dampingFraction: 0.55), value: configuration.isOn)
@@ -485,7 +484,7 @@ struct TPDropdown<T: Hashable>: View {
                 Spacer()
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(expanded || headerHovered ? Theme.pink : Theme.textDim)
+                    .foregroundColor(expanded || headerHovered ? Theme.green : Theme.textDim)
                     .rotationEffect(.degrees(expanded ? 180 : 0))
             }
             .padding(.horizontal, 10)
@@ -511,24 +510,24 @@ struct TPDropdown<T: Hashable>: View {
                 let isSelected = selection == option
                 HStack(spacing: 6) {
                     Rectangle()
-                        .fill(Theme.pink)
+                        .fill(Theme.green)
                         .frame(width: 3)
                         .opacity(isSelected ? 1 : 0)
                     Text(label(option))
                         .font(Torus.font(12, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(
-                            isHovered ? .white : (isSelected ? Theme.pink : Theme.text))
+                            isHovered ? .white : (isSelected ? Theme.green : Theme.text))
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(isHovered ? .white : Theme.pink)
+                            .foregroundColor(isHovered ? .white : Theme.green)
                             .padding(.trailing, 10)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
-                .background(Theme.pink.opacity(isHovered ? 0.9 : 0))
+                .background(Theme.green.opacity(isHovered ? 0.9 : 0))
                 .contentShape(Rectangle())
                 .onHover { hovered = $0 ? option : (hovered == option ? nil : hovered) }
                 .onTapGesture {
@@ -724,7 +723,7 @@ struct PreferenceView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
                             LinearGradient(
-                                colors: [Theme.pink, Theme.pinkDark],
+                                colors: [Theme.green, Theme.greenDark],
                                 startPoint: .top, endPoint: .bottom))
                 )
             }
