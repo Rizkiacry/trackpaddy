@@ -1,5 +1,5 @@
 # trackpaddy
-the ultimate trackpad driver for macOS, for absolute/relative positioning and customizability
+a trackpad driver for macOS, supporting absolute/relative positioning and customizability
 
 for aimers and osu! players who want good trackpad feedback.
 
