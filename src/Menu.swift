@@ -3,15 +3,15 @@ import Cocoa
 import SwiftUI
 
 enum Theme {
-    static let bg = Color(red: 27/255, green: 23/255, blue: 25/255)
-    static let bgTop = Color(red: 39/255, green: 30/255, blue: 36/255)
-    static let panel = Color(red: 42/255, green: 34/255, blue: 40/255)
-    static let panelHi = Color(red: 53/255, green: 43/255, blue: 50/255)
-    static let stroke = Color(red: 62/255, green: 51/255, blue: 59/255)
-    static let pink = Color(red: 255/255, green: 102/255, blue: 171/255)
-    static let pinkDark = Color(red: 204/255, green: 79/255, blue: 136/255)
-    static let text = Color(red: 243/255, green: 235/255, blue: 239/255)
-    static let textDim = Color(red: 154/255, green: 140/255, blue: 148/255)
+    static let bg = Color(red: 27 / 255, green: 23 / 255, blue: 25 / 255)
+    static let bgTop = Color(red: 39 / 255, green: 30 / 255, blue: 36 / 255)
+    static let panel = Color(red: 42 / 255, green: 34 / 255, blue: 40 / 255)
+    static let panelHi = Color(red: 53 / 255, green: 43 / 255, blue: 50 / 255)
+    static let stroke = Color(red: 62 / 255, green: 51 / 255, blue: 59 / 255)
+    static let pink = Color(red: 255 / 255, green: 102 / 255, blue: 171 / 255)
+    static let pinkDark = Color(red: 204 / 255, green: 79 / 255, blue: 136 / 255)
+    static let text = Color(red: 243 / 255, green: 235 / 255, blue: 239 / 255)
+    static let textDim = Color(red: 154 / 255, green: 140 / 255, blue: 148 / 255)
 }
 
 enum Torus {
@@ -593,6 +593,7 @@ struct PreferenceView: View {
     enum FocusedField: Hashable {
         case smoothingFactor
         case jitterThreshold
+        case trackingSensitivity
     }
     @FocusState private var focusedField: FocusedField?
 
@@ -623,6 +624,11 @@ struct PreferenceView: View {
             //     usePercentage: false
             // )
 
+            Rectangle()
+                .fill(Theme.stroke)
+                .frame(height: 2)
+                .cornerRadius(1)
+
             TPDropdown(
                 title: "Mapping mode",
                 selection: $settings.trackingMode,
@@ -640,14 +646,37 @@ struct PreferenceView: View {
                     glyph: "rectangle.dashed",
                     usePercentage: true
                 )
+                TPDropdown(
+                    title: "Display",
+                    selection: display,
+                    options: displays,
+                    label: { String(format: "Display %@", $0) }
+                )
+            } else {
+                // HStack {
+                //     Spacer()
+                //     Text("1.0 = full area")
+                //         .font(Torus.font(11, weight: .medium))
+                //         .foregroundColor(Theme.textDim)
+                //         .multilineTextAlignment(.center)
+                //     // Spacer()
+                // }
+               
+                NumberField(
+                    title: "Tracking sensitivity",
+                    value: $settings.trackingSensitivity,
+                    format: "%.2f",
+                    focusedField: $focusedField,
+                    fieldId: .trackingSensitivity,
+                    range: 0.05...10,
+                    showSlider: true
+                )
             }
 
-            TPDropdown(
-                title: "Display",
-                selection: display,
-                options: displays,
-                label: { String(format: "Display %@", $0) }
-            )
+            Rectangle()
+                .fill(Theme.stroke)
+                .frame(height: 2)
+                .cornerRadius(1)
 
             NumberField(
                 title: "Smoothing factor",
@@ -709,7 +738,18 @@ struct PreferenceView: View {
         .frame(width: 400, alignment: .top)
         .fixedSize(horizontal: false, vertical: false)
         .background(Theme.bg)
-        .onAppear(perform: load)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+        .onAppear {
+            load()
+            DispatchQueue.main.async {
+                focusedField = nil
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
+        }
     }
 
     private func load() {
@@ -766,7 +806,11 @@ class StatusMenu: NSObject {
             hosting.view.layoutSubtreeIfNeeded()
             popover.contentSize = hosting.view.fittingSize
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            let window = popover.contentViewController?.view.window
+            window?.makeKey()
+            DispatchQueue.main.async {
+                window?.makeFirstResponder(nil)
+            }
         }
     }
 }

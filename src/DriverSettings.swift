@@ -54,6 +54,7 @@ class DriverSettings: Codable {
     var enabled: Bool = false
     var smoothingFactor: Double = 0.9
     var jitterThreshold: Double = 1.0
+    var trackingSensitivity: Double = 1.0
 
     var lastSaved: Date? = nil
 
@@ -71,6 +72,7 @@ class DriverSettings: Codable {
         enabled = UserDefaults.standard.bool(forKey: "enabled")
         smoothingFactor = getNumOrDefault(key: "smoothingFactor", defaultValue: 0.9)
         jitterThreshold = getNumOrDefault(key: "jitterThreshold", defaultValue: 1.0)
+        trackingSensitivity = getNumOrDefault(key: "trackingSensitivity", defaultValue: 1.0)
     }
 
     private func getNumOrDefault(key: String, defaultValue: Double) -> Double {
@@ -91,6 +93,7 @@ class DriverSettings: Codable {
         UserDefaults.standard.set(enabled, forKey: "enabled")
         UserDefaults.standard.set(smoothingFactor, forKey: "smoothingFactor")
         UserDefaults.standard.set(jitterThreshold, forKey: "jitterThreshold")
+        UserDefaults.standard.set(trackingSensitivity, forKey: "trackingSensitivity")
         print("[main] saved settings")
         lastSaved = Date()
     }
@@ -116,6 +119,8 @@ class DriverSettings: Codable {
         args.append(String(smoothingFactor))
         args.append("-j")
         args.append(String(jitterThreshold))
+        args.append("-t")
+        args.append(String(trackingSensitivity))
         return args
     }
 }

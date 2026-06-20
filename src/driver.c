@@ -136,8 +136,8 @@ void handleRelativeMoveCursor(double normx, double normy) {
   double dy = normy - pivotPointTouch.y;
 
   // currently it's technically mapped to full area
-  dx *= screenSize.width * 2;
-  dy *= screenSize.height * 2;
+  dx *= screenSize.width * settings.trackingSensitivity;
+  dy *= screenSize.height * settings.trackingSensitivity;
 
   moveCursorToAbs((CGPoint){pivotPointScreen.x + dx, pivotPointScreen.y + dy});
 }
@@ -367,7 +367,7 @@ Rectangle parseRectangle(char *s) {
 
 void parseSettings(int argc, char **argv) {
   int opt;
-  while ((opt = getopt(argc, argv, "i:o:d:s:j:em:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:o:d:s:t:j:em:")) != -1) {
     switch (opt) {
     case 'i':
       settings.activeArea = parseRectangle(optarg);
@@ -394,6 +394,9 @@ void parseSettings(int argc, char **argv) {
       break;
     case 'j':
       settings.jitterThreshold = atof(optarg);
+      break;
+    case 't':
+      settings.trackingSensitivity = atof(optarg);
       break;
     default:
       // fprintf(stderr,
