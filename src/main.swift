@@ -47,10 +47,8 @@ func main() {
     statusItem.button?.image = Bundle.main.image(forResource: "trackpad_status_icon")!
     statusItem.button?.image!.isTemplate = true
 
-    let menu = StatusMenu()
-
-    // Hook menu to status bar item
-    statusItem.menu = menu
+    // Hook a popover to the status bar item
+    let statusMenu = StatusMenu(statusItem: statusItem)
 
     // start driver !!
     if driverSettings.enabled {

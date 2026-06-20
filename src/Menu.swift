@@ -739,24 +739,34 @@ struct PreferenceView: View {
     }
 }
 
-class StatusMenu: NSMenu {
-    var process: Process? = nil
+class StatusMenu: NSObject {
+    let popover = NSPopover()
+    let statusItem: NSStatusItem
+    private var hosting: NSHostingController<PreferenceView>!
 
-    required init(coder: NSCoder) {
-        super.init(coder: coder)
+    init(statusItem: NSStatusItem) {
+        self.statusItem = statusItem
+        super.init()
+
+        hosting = NSHostingController(rootView: PreferenceView(statusMenu: self))
+        popover.contentViewController = hosting
+        popover.behavior = .transient
+        popover.animates = true
+
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(togglePopover(_:))
     }
 
-    public init() {
-        super.init(title: "")
-
-        let prefView = NSHostingView(rootView: PreferenceView(statusMenu: self))
-        prefView.sizingOptions = [.minSize, .intrinsicContentSize, .maxSize]
-        prefView.translatesAutoresizingMaskIntoConstraints = false
-        prefView.widthAnchor.constraint(equalToConstant: 400).isActive = true
-        prefView.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
-        let preferenceMenuItem = NSMenuItem()
-        preferenceMenuItem.view = prefView
-
-        addItem(preferenceMenuItem)
+    @objc func togglePopover(_ sender: Any?) {
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(sender)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            hosting.view.layoutSubtreeIfNeeded()
+            popover.contentSize = hosting.view.fittingSize
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
+        }
     }
 }
