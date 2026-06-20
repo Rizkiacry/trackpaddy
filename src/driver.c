@@ -1,5 +1,7 @@
 #include "MultitouchSupport.h"
 #include <Carbon/Carbon.h>
+#include <CoreGraphics/CGGeometry.h>
+#include <CoreGraphics/CGRemoteOperation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <pthread.h>
 // #include "settings.h"
@@ -33,7 +35,7 @@ typedef struct {
   TrackingMode mode;
   float trackingSensitivity; // units: px/(10% of trackpad)
   bool emitMouseEvent;
-  double smoothingFactor;// aka JITTER_ALPHA
+  double smoothingFactor; // aka JITTER_ALPHA
   double jitterThreshold;
 } TrackpadSettings;
 
@@ -71,7 +73,7 @@ double reverseRectRatio(double n, double origin, double size) {
   return n * size + origin;
 }
 
-MTPoint _map(double normx, double normy) {
+MTPoint mapToScreen(double normx, double normy) {
   Rectangle *active = &settings.activeArea;
   Rectangle *screen = &settings.screenMapping;
 
@@ -88,10 +90,66 @@ MTPoint _map(double normx, double normy) {
   return point;
 }
 
-void moveCursor(double x, double y) {
-  // Simple stabiliser: ignore very small moves and smooth bigger ones
+void moveCursorToAbs(CGPoint point) { // now we're talking screen
+  CGWarpMouseCursorPosition(point);
+
+  // below is emitMouseEvents
+  // we are not using it because it causes conflict with the native driver and
+  // so with relative and even absolute it causes jitter and stuff
+
+  // CGEventRef event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, point,
+  //                                            kCGMouseButtonLeft);
+  // CGEventSetIntegerValueField(event, kCGEventSourceUserData, MAGIC_NUMBER);
+  // CGEventSetIntegerValueField(event, kCGMouseEventSubtype, 3);
+
+  // // if (settings.mode == RELATIVE) {
+  // //   CGEventSetIntegerValueField(event, kCGMouseEventDeltaX, (int64_t)dx);
+  // //   CGEventSetIntegerValueField(event, kCGMouseEventDeltaY, (int64_t)dy);
+  // // }
+
+  // try(pthread_mutex_lock(&mouseEventNumber_mutex));
+  // CGEventSetIntegerValueField(event, kCGMouseEventNumber, mouseEventNumber);
+  // try(pthread_mutex_unlock(&mouseEventNumber_mutex));
+
+  // CGEventPost(kCGHIDEventTap, event);
+  // CFRelease(event);
+}
+
+bool relativeWereFingersReleased = false;
+
+void handleRelativeMoveCursor(double normx, double normy) {
+  static CGPoint pivotPointTouch = {0, 0};
+  static CGPoint pivotPointScreen = {0, 0};
+  if (relativeWereFingersReleased) {
+    pivotPointTouch = (CGPoint){normx, normy};
+    CGEventRef locEvent = CGEventCreate(NULL);
+    pivotPointScreen = CGEventGetLocation(locEvent);
+    // printf("pivotPointScreen: %f, %f\n", pivotPointScreen.x,
+    // pivotPointScreen.y); printf("pivotPointTouch: %f, %f\n",
+    // pivotPointTouch.x, pivotPointTouch.y);
+    CFRelease(locEvent);
+    relativeWereFingersReleased = false;
+    return;
+  }
+
+  double dx = normx - pivotPointTouch.x;
+  double dy = normy - pivotPointTouch.y;
+
+  // currently it's technically mapped to full area
+  dx *= screenSize.width * 2;
+  dy *= screenSize.height * 2;
+
+  moveCursorToAbs((CGPoint){pivotPointScreen.x + dx, pivotPointScreen.y + dy});
+}
+
+void handleAbsoluteMoveCursor(double normx, double normy) {
+  MTPoint screenPoint = mapToScreen(normx, normy);
   static double lastX = -1.0;
   static double lastY = -1.0;
+  double x = screenPoint.x;
+  double y = screenPoint.y;
+
+  // Simple stabiliser: ignore very small moves and smooth bigger ones
 
   // Minimum movement (in screen pixels) before we move the cursor (change in
   // settings.def.h / settings.h)
@@ -111,14 +169,15 @@ void moveCursor(double x, double y) {
     double dy = y - lastY;
     double dist2 = dx * dx + dy * dy;
 
-    // If the movement is tiny, ignore it completely
-    if (dist2 < threshold * threshold) {
-      return;
+    if (dist2 < threshold * threshold) { // we're still gonna warp, just at the
+                                         // previous position
+      x = lastX;
+      y = lastY;
+    } else {
+      // Low-pass filter: move part-way toward the new point
+      x = lastX + alpha * dx;
+      y = lastY + alpha * dy;
     }
-
-    // Low-pass filter: move part-way toward the new point
-    x = lastX + alpha * dx;
-    y = lastY + alpha * dy;
   }
 
   lastX = x;
@@ -135,19 +194,14 @@ void moveCursor(double x, double y) {
   point.x += screenBounds.origin.x;
   point.y += screenBounds.origin.y;
 
-  if (settings.emitMouseEvent) {
-    CGEventRef event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, point,
-                                               kCGMouseButtonLeft);
-    CGEventSetIntegerValueField(event, kCGEventSourceUserData, MAGIC_NUMBER);
-    CGEventSetIntegerValueField(event, kCGMouseEventSubtype, 3);
+  moveCursorToAbs(point);
+}
 
-    try(pthread_mutex_lock(&mouseEventNumber_mutex));
-    CGEventSetIntegerValueField(event, kCGMouseEventNumber, mouseEventNumber);
-    try(pthread_mutex_unlock(&mouseEventNumber_mutex));
-
-    CGEventPost(kCGHIDEventTap, event);
+void moveCursor(double normx, double normy) {
+  if (settings.mode == RELATIVE) {
+    handleRelativeMoveCursor(normx, normy);
   } else {
-    CGWarpMouseCursorPosition(point);
+    handleAbsoluteMoveCursor(normx, normy);
   }
 }
 
@@ -164,7 +218,8 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
 #define GESTURE_PHASE_BEGAN 2
 #define GESTURE_TIMEOUT 0.02
 
-  static MTPoint fingerPosition = {0, 0}, oldFingerPosition = {0, 0};
+  static MTPoint fingerPosition = {0, 0},
+                 oldFingerPosition = {0, 0}; // normalized finger positioning
   static int32_t oldPathIndex = -1;
   static double oldTimeStamp = 0, startTrackTimeStamp = 0;
   static size_t oldFingerCount = 1;
@@ -180,6 +235,9 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
     gesturePhase = GESTURE_PHASE_NONE;
     oldFingerCount = nFingers;
     startTrackTimeStamp = 0;
+    // lastX = -1.0;
+    // lastY = -1.0;
+    relativeWereFingersReleased = true;
     return 0;
   }
 
@@ -190,6 +248,8 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
   if (oldFingerCount != 1 && nFingers == 1 && !gesturePhase) {
     gesturePhase = GESTURE_PHASE_MAYSTART;
     oldFingerCount = nFingers;
+    // lastX = (double) (&data[0])->normalizedVector.position.x;
+    // lastY = (double) (&data[0])->normalizedVector.position.y;
     return 0;
   };
 
@@ -236,8 +296,8 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
 
   oldFingerPosition = fingerPosition;
   // use settings.h if no command line arguments are given
-  fingerPosition =
-      _map(f->normalizedVector.position.x, 1 - f->normalizedVector.position.y);
+  fingerPosition = (MTPoint){f->normalizedVector.position.x,
+                             1 - f->normalizedVector.position.y};
   MTPoint velocity = f->normalizedVector.velocity;
 
   if (fingerPosition.x < 0 || fingerPosition.y < 0) {
@@ -401,11 +461,13 @@ int main(int argc, char **argv) {
       printf("[driver] registered device %d\n", familyId);
       int surfaceWidth, surfaceHeight;
       MTDeviceGetSensorSurfaceDimensions(device, &surfaceWidth, &surfaceHeight);
-      // returned from MTDeviceGetSensorSurfaceDimensions is the W H in centimillimeters it seems
-      // on my macbook air 13in m3 is returns 12194, 7408, and it physically measures ~127mm x ~80mm
-      // so im assuming it returns centimillimeter active area, and that the active area is not 100% of the trackpad
-      // either way it should be close enough
-      printf("[driver] surface dimensions: %d, %d\n", surfaceWidth, surfaceHeight);
+      // returned from MTDeviceGetSensorSurfaceDimensions is the W H in
+      // centimillimeters it seems on my macbook air 13in m3 is returns 12194,
+      // 7408, and it physically measures ~127mm x ~80mm so im assuming it
+      // returns centimillimeter active area, and that the active area is not
+      // 100% of the trackpad either way it should be close enough
+      printf("[driver] surface dimensions: %d, %d\n", surfaceWidth,
+             surfaceHeight);
       break;
     }
   }
