@@ -70,7 +70,7 @@ class DriverSettings: Codable {
             UserDefaults.standard.set(displayId, forKey: "displayId")
         }
         enabled = UserDefaults.standard.bool(forKey: "enabled")
-        smoothingFactor = getNumOrDefault(key: "smoothingFactor", defaultValue: 0.9)
+        smoothingFactor = max(getNumOrDefault(key: "smoothingFactor", defaultValue: 0.9), 0.1)
         jitterThreshold = getNumOrDefault(key: "jitterThreshold", defaultValue: 1.0)
         trackingSensitivity = getNumOrDefault(key: "trackingSensitivity", defaultValue: 1.0)
     }

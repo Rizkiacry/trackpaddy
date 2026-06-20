@@ -684,7 +684,7 @@ struct PreferenceView: View {
                 format: "%.2f",
                 focusedField: $focusedField,
                 fieldId: .smoothingFactor,
-                range: 0...1,
+                range: 0.1...1,
                 showSlider: true
             )
             NumberField(

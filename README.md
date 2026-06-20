@@ -1,7 +1,10 @@
 # trackpaddy
-a trackpad driver for macOS, supporting absolute/relative positioning and customizability
+A trackpad driver for macOS, supporting absolute/relative positioning and customizability
 
 for aimers and osu! players who want good trackpad feedback.
+
+# releases
+None yet!
 
 # dev
 - git clone

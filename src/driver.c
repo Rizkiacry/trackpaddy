@@ -120,6 +120,9 @@ bool relativeWereFingersReleased = false;
 void handleRelativeMoveCursor(double normx, double normy) {
   static CGPoint pivotPointTouch = {0, 0};
   static CGPoint pivotPointScreen = {0, 0};
+  static double lastX = -1.0;
+  static double lastY = -1.0;
+
   if (relativeWereFingersReleased) {
     pivotPointTouch = (CGPoint){normx, normy};
     CGEventRef locEvent = CGEventCreate(NULL);
@@ -129,6 +132,8 @@ void handleRelativeMoveCursor(double normx, double normy) {
     // pivotPointTouch.x, pivotPointTouch.y);
     CFRelease(locEvent);
     relativeWereFingersReleased = false;
+    lastX = -1.0;
+    lastY = -1.0;
     return;
   }
 
@@ -139,7 +144,30 @@ void handleRelativeMoveCursor(double normx, double normy) {
   dx *= screenSize.width * settings.trackingSensitivity;
   dy *= screenSize.height * settings.trackingSensitivity;
 
-  moveCursorToAbs((CGPoint){pivotPointScreen.x + dx, pivotPointScreen.y + dy});
+  double x = pivotPointScreen.x + dx;
+  double y = pivotPointScreen.y + dy;
+
+  double threshold = settings.jitterThreshold;
+  double alpha = settings.smoothingFactor;
+
+  if (lastX >= 0.0 && lastY >= 0.0) {
+    double ddx = x - lastX;
+    double ddy = y - lastY;
+    double dist2 = ddx * ddx + ddy * ddy;
+
+    if (dist2 < threshold * threshold) {
+      x = lastX;
+      y = lastY;
+    } else {
+      x = lastX + alpha * ddx;
+      y = lastY + alpha * ddy;
+    }
+  }
+
+  lastX = x;
+  lastY = y;
+
+  moveCursorToAbs((CGPoint){x, y});
 }
 
 void handleAbsoluteMoveCursor(double normx, double normy) {
@@ -153,16 +181,8 @@ void handleAbsoluteMoveCursor(double normx, double normy) {
 
   // Minimum movement (in screen pixels) before we move the cursor (change in
   // settings.def.h / settings.h)
-  const double threshold = settings.jitterThreshold;
+  double threshold = settings.jitterThreshold;
   double alpha = settings.smoothingFactor; // from settings
-
-  // Prevent alpha from being exactly 0 to avoid cursor freeze.
-  // If the user sets JITTER_ALPHA = 0 in settings, we clamp it to 0.1.
-  if (alpha <= 0.0) {
-    alpha = 0.1;
-  } else if (alpha > 1.0) {
-    alpha = 1.0;
-  }
 
   if (lastX >= 0.0 && lastY >= 0.0) {
     double dx = x - lastX;
