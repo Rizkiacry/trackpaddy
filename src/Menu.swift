@@ -10,6 +10,10 @@ enum Theme {
     static let stroke = Color(red: 51 / 255, green: 62 / 255, blue: 59 / 255)
     static let green = Color(red: 102 / 255, green: 255 / 255, blue: 102 / 255)
     static let greenDark = Color(red: 79 / 255, green: 204 / 255, blue: 79 / 255)
+    static let blue = Color(red: 102 / 255, green: 102 / 255, blue: 255 / 255)
+    static let blueDark = Color(red: 79 / 255, green: 79 / 255, blue: 204 / 255)
+    static let red = Color(red: 255 / 255, green: 102 / 255, blue: 102 / 255)
+    static let redDark = Color(red: 204 / 255, green: 79 / 255, blue: 79 / 255)
     static let text = Color(red: 235 / 255, green: 243 / 255, blue: 239 / 255)
     static let textDim = Color(red: 140 / 255, green: 154 / 255, blue: 148 / 255)
 }
@@ -202,6 +206,7 @@ struct NumberField<V: BinaryFloatingPoint, F: Hashable>: View {
 
 struct TPRegionEditor: View {
     @Binding var rect: CGRect
+    @Binding var lockAspectRatio: Bool
     let aspect: CGFloat
     let title: String
     let glyph: String
@@ -294,6 +299,12 @@ struct TPRegionEditor: View {
                         fieldId: .height, range: 0...1)
                 }
             }
+            Toggle(isOn: $lockAspectRatio) {
+                Text("Lock aspect ratio")
+                    .font(Torus.font(11, weight: .medium))
+                    .foregroundColor(Theme.text)
+            }
+            .toggleStyle(TPToggle())
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
@@ -640,6 +651,7 @@ struct PreferenceView: View {
             if settings.trackingMode == .absolute {
                 TPRegionEditor(
                     rect: trackpadRect,
+                    lockAspectRatio: $settings.lockAspectRatio,
                     aspect: 1.6,
                     title: "Trackpad",
                     glyph: "rectangle.dashed",
@@ -660,7 +672,7 @@ struct PreferenceView: View {
                 //         .multilineTextAlignment(.center)
                 //     // Spacer()
                 // }
-               
+
                 NumberField(
                     title: "Tracking sensitivity",
                     value: $settings.trackingSensitivity,
@@ -728,6 +740,44 @@ struct PreferenceView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            Rectangle()
+                .fill(Theme.stroke)
+                .frame(height: 2)
+                .cornerRadius(1)
+
+            HStack {
+                // need to implement updating and stuff w/ releases
+                // Button(action: {}) {
+                //     Text("Check for updates")
+                //         .font(Torus.font(10, weight: .semibold))
+                //         .padding(.vertical, 6)
+                //         .padding(.horizontal, 8)
+                //         .foregroundColor(.white)
+                //         .background(
+                //             RoundedRectangle(cornerRadius: 8)
+                //                 .fill(LinearGradient(colors: [Theme.blue, Theme.blueDark], startPoint: .top, endPoint: .bottom))
+                //         )
+                // }
+                // .buttonStyle(.plain)
+                Spacer()
+                Button(action: { NSApp.terminate(nil) }) {
+                    Text("Quit")
+                        .font(Torus.font(10, weight: .semibold))
+                        // .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        .foregroundColor(.white)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Theme.red, Theme.redDark], startPoint: .top,
+                                        endPoint: .bottom))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
 
             // Text(settings.lastSaved == nil ? "Driver settings up to date!" : "Driver synced: \(settings.lastSaved!.formatted())")
             //     .font(Torus.font(11, weight: .medium))

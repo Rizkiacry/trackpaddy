@@ -55,7 +55,8 @@ class DriverSettings: Codable {
     var smoothingFactor: Double = 0.9
     var jitterThreshold: Double = 1.0
     var trackingSensitivity: Double = 1.0
-
+    var lockAspectRatio: Bool = false
+    
     var lastSaved: Date? = nil
 
     init() {
@@ -73,6 +74,7 @@ class DriverSettings: Codable {
         smoothingFactor = max(getNumOrDefault(key: "smoothingFactor", defaultValue: 0.9), 0.1)
         jitterThreshold = getNumOrDefault(key: "jitterThreshold", defaultValue: 1.0)
         trackingSensitivity = getNumOrDefault(key: "trackingSensitivity", defaultValue: 1.0)
+        lockAspectRatio = UserDefaults.standard.bool(forKey: "lockAspectRatio")
     }
 
     private func getNumOrDefault(key: String, defaultValue: Double) -> Double {
@@ -94,6 +96,7 @@ class DriverSettings: Codable {
         UserDefaults.standard.set(smoothingFactor, forKey: "smoothingFactor")
         UserDefaults.standard.set(jitterThreshold, forKey: "jitterThreshold")
         UserDefaults.standard.set(trackingSensitivity, forKey: "trackingSensitivity")
+        UserDefaults.standard.set(lockAspectRatio, forKey: "lockAspectRatio")
         print("[main] saved settings")
         lastSaved = Date()
     }

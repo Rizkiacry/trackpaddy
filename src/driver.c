@@ -12,14 +12,8 @@
     exit(1);                                                                   \
   }
 
-static const double JITTER_THRESHOLD = 1.0; // in screen pixels (try 4–10)
-
-// Smoothing factor for cursor motion (0..1).
-// If set to 0, it will be clamped to 0.1 in trackpad_mapper_util.c to avoid the
-// cursor getting stuck.
-static const double JITTER_ALPHA = 0.9;
-
 // Disable custom cursor movement whenever more than one finger is on the pad
+// allows gestures (?) and such
 static const bool DISABLE_CURSOR_ON_MULTITOUCH = true;
 
 typedef struct {
@@ -51,6 +45,7 @@ TrackpadSettings settings = {
 };
 CGRect screenBounds;
 CGSize screenSize;
+CGSize trackpadDigitizerSize;
 
 int mouseEventNumber = 0;
 pthread_mutex_t mouseEventNumber_mutex;
@@ -141,8 +136,15 @@ void handleRelativeMoveCursor(double normx, double normy) {
   double dy = normy - pivotPointTouch.y;
 
   // currently it's technically mapped to full area
-  dx *= screenSize.width * settings.trackingSensitivity;
-  dy *= screenSize.height * settings.trackingSensitivity;
+  // dx *= screenSize.width * settings.trackingSensitivity;
+  // dy *= screenSize.height * settings.trackingSensitivity;
+  double trackpadAsr = trackpadDigitizerSize.width / trackpadDigitizerSize.height;
+  // so currently (dx, dy) is normalized (1,1)
+  // we need to convert it to (1, tds.height / tds.width) so that the axes are same sens
+  dy /= trackpadAsr;
+  // now multiply by sens
+  dx *= settings.trackingSensitivity * 1000;
+  dy *= settings.trackingSensitivity * 1000;
 
   double x = pivotPointScreen.x + dx;
   double y = pivotPointScreen.y + dy;
@@ -491,6 +493,7 @@ int main(int argc, char **argv) {
       // 100% of the trackpad either way it should be close enough
       printf("[driver] surface dimensions: %d, %d\n", surfaceWidth,
              surfaceHeight);
+      trackpadDigitizerSize = (CGSize){surfaceWidth, surfaceHeight};
       break;
     }
   }

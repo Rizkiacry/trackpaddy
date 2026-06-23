@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>trackpaddy</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.trackpaddy</string>
+	<string>sh.tokaa.trackpaddy</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
