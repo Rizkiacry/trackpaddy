@@ -173,7 +173,8 @@ void handleRelativeMoveCursor(double normx, double normy) {
 
   lastNormX = normx;
   lastNormY = normy;
-  lastCursorPos = (CGPoint){x, y};
+  // lastCursorPos = (CGPoint){x, y};
+  lastCursorPos = CGEventGetLocation(CGEventCreate(NULL));
 }
 
 void handleAbsoluteMoveCursor(double normx, double normy) {
@@ -254,7 +255,8 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers, double 
   // FIXME: how many fingers can magic trackpad detect?
   static bool gesturePaths[20] = {0};
 
-  printf("sec: %f\n", timestamp);
+  if (oldFingerCount != nFingers)
+    relativeWereFingersReleased = true;
   
   if (nFingers == 0) {
     // all fingers lifted, clearing gesture fingers
