@@ -55,6 +55,12 @@ func main() {
         startDriver()
     }
 
+    let onDisplayChange: CGDisplayReconfigurationCallBack = { (displayID, flags, userInfo) in
+        print("[main] displays changed! restarting driver")
+        restartDriver()
+    }
+    CGDisplayRegisterReconfigurationCallback(onDisplayChange, nil)
+
     // Atart app
     NSApp.run()
 }

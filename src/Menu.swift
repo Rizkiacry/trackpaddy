@@ -221,6 +221,7 @@ struct TPRegionEditor: View {
     @FocusState private var focusedField: FocusedField?
 
     @State private var startRect: CGRect? = nil
+    @State private var previewBox = CGSize(width: 1, height: 1)
     private let minSize: CGFloat = 0.1
     private let handle: CGFloat = 10
 
@@ -284,6 +285,15 @@ struct TPRegionEditor: View {
                     }
                 }
                 .frame(height: 100)
+                .background {
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { previewBox = fittedBox(in: geo.size) }
+                            .onChange(of: geo.size) { _, size in
+                                previewBox = fittedBox(in: size)
+                            }
+                    }
+                }
                 VStack {
                     NumberField(
                         title: "X", value: $rect.origin.x, focusedField: $focusedField,
@@ -292,10 +302,10 @@ struct TPRegionEditor: View {
                         title: "Y", value: $rect.origin.y, focusedField: $focusedField,
                         fieldId: .y, range: 0...1)
                     NumberField(
-                        title: "W", value: $rect.size.width, focusedField: $focusedField,
+                        title: "W", value: widthBinding, focusedField: $focusedField,
                         fieldId: .width, range: 0...1)
                     NumberField(
-                        title: "H", value: $rect.size.height, focusedField: $focusedField,
+                        title: "H", value: heightBinding, focusedField: $focusedField,
                         fieldId: .height, range: 0...1)
                 }
             }
@@ -305,6 +315,11 @@ struct TPRegionEditor: View {
                     .foregroundColor(Theme.text)
             }
             .toggleStyle(TPToggle())
+            .onChange(of: lockAspectRatio) { _, locked in
+                if locked {
+                    rect = enableAspectLock(rect, box: previewBox)
+                }
+            }
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
@@ -353,31 +368,140 @@ struct TPRegionEditor: View {
                 if startRect == nil { startRect = rect }
                 let dx = v.translation.width / box.width
                 let dy = v.translation.height / box.height
-                var minX = s.minX
-                var minY = s.minY
-                var maxX = s.maxX
-                var maxY = s.maxY
-                switch corner {
-                case .topLeading:
-                    minX += dx
-                    minY += dy
-                case .topTrailing:
-                    maxX += dx
-                    minY += dy
-                case .bottomLeading:
-                    minX += dx
-                    maxY += dy
-                case .bottomTrailing:
-                    maxX += dx
-                    maxY += dy
+                if lockAspectRatio {
+                    rect = resizeWithAspectLock(
+                        start: s, corner: corner, dx: dx, dy: dy, box: box)
+                } else {
+                    var minX = s.minX
+                    var minY = s.minY
+                    var maxX = s.maxX
+                    var maxY = s.maxY
+                    switch corner {
+                    case .topLeading:
+                        minX += dx
+                        minY += dy
+                    case .topTrailing:
+                        maxX += dx
+                        minY += dy
+                    case .bottomLeading:
+                        minX += dx
+                        maxY += dy
+                    case .bottomTrailing:
+                        maxX += dx
+                        maxY += dy
+                    }
+                    minX = min(max(0, minX), maxX - minSize)
+                    minY = min(max(0, minY), maxY - minSize)
+                    maxX = max(min(1, maxX), minX + minSize)
+                    maxY = max(min(1, maxY), minY + minSize)
+                    rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
                 }
-                minX = min(max(0, minX), maxX - minSize)
-                minY = min(max(0, minY), maxY - minSize)
-                maxX = max(min(1, maxX), minX + minSize)
-                maxY = max(min(1, maxY), minY + minSize)
-                rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
             }
             .onEnded { _ in startRect = nil }
+    }
+
+    private var widthBinding: Binding<CGFloat> {
+        Binding(
+            get: { rect.width },
+            set: { newWidth in
+                var r = rect
+                r.size.width = newWidth
+                if lockAspectRatio {
+                    r.size.height = newWidth / normAspect(in: previewBox)
+                }
+                rect = clampRect(r)
+            }
+        )
+    }
+
+    private var heightBinding: Binding<CGFloat> {
+        Binding(
+            get: { rect.height },
+            set: { newHeight in
+                var r = rect
+                r.size.height = newHeight
+                if lockAspectRatio {
+                    r.size.width = newHeight * normAspect(in: previewBox)
+                }
+                rect = clampRect(r)
+            }
+        )
+    }
+
+    private func fittedBox(in size: CGSize) -> CGSize {
+        let pad = handle / 2 + 1
+        let inner = CGSize(
+            width: max(0, size.width - pad * 2),
+            height: max(0, size.height - pad * 2))
+        return fitted(inner, aspect)
+    }
+
+    private func normAspect(in box: CGSize) -> CGFloat {
+        guard box.width > 0, box.height > 0 else { return 1 }
+        return aspect * box.height / box.width
+    }
+
+    private func clampRect(_ r: CGRect) -> CGRect {
+        let w = max(minSize, min(r.width, 1))
+        let h = max(minSize, min(r.height, 1))
+        let x = min(max(0, r.origin.x), 1 - w)
+        let y = min(max(0, r.origin.y), 1 - h)
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+
+    private func enableAspectLock(_ r: CGRect, box: CGSize) -> CGRect {
+        let ratio = normAspect(in: box)
+        let targetH = r.width / ratio
+        var w = r.width
+        var h = r.height
+        if h > targetH {
+            h = targetH
+        } else {
+            w = h * ratio
+        }
+        return clampRect(CGRect(x: r.origin.x, y: r.origin.y, width: w, height: h))
+    }
+
+    private func resizeWithAspectLock(
+        start s: CGRect, corner: Corner, dx: CGFloat, dy: CGFloat, box: CGSize
+    ) -> CGRect {
+        let ratio = normAspect(in: box)
+        let useWidth = abs(dx) >= abs(dy)
+        var w: CGFloat
+        var h: CGFloat
+        var origin: CGPoint
+        switch corner {
+        case .topLeading:
+            w = s.maxX - (s.minX + dx)
+            h = s.maxY - (s.minY + dy)
+            (w, h) = aspectSize(width: w, height: h, ratio: ratio, useWidth: useWidth)
+            origin = CGPoint(x: s.maxX - w, y: s.maxY - h)
+        case .topTrailing:
+            w = (s.maxX + dx) - s.minX
+            h = s.maxY - (s.minY + dy)
+            (w, h) = aspectSize(width: w, height: h, ratio: ratio, useWidth: useWidth)
+            origin = CGPoint(x: s.minX, y: s.maxY - h)
+        case .bottomLeading:
+            w = s.maxX - (s.minX + dx)
+            h = (s.maxY + dy) - s.minY
+            (w, h) = aspectSize(width: w, height: h, ratio: ratio, useWidth: useWidth)
+            origin = CGPoint(x: s.maxX - w, y: s.minY)
+        case .bottomTrailing:
+            w = (s.maxX + dx) - s.minX
+            h = (s.maxY + dy) - s.minY
+            (w, h) = aspectSize(width: w, height: h, ratio: ratio, useWidth: useWidth)
+            origin = CGPoint(x: s.minX, y: s.minY)
+        }
+        return clampRect(CGRect(x: origin.x, y: origin.y, width: w, height: h))
+    }
+
+    private func aspectSize(
+        width w: CGFloat, height h: CGFloat, ratio: CGFloat, useWidth: Bool
+    ) -> (CGFloat, CGFloat) {
+        if useWidth {
+            return (max(w, minSize), max(w / ratio, minSize))
+        }
+        return (max(h * ratio, minSize), max(h, minSize))
     }
 
     private func handlePoint(_ c: Corner, _ r: CGRect) -> CGPoint {

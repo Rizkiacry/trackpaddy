@@ -15,6 +15,7 @@
 // Disable custom cursor movement whenever more than one finger is on the pad
 // allows gestures (?) and such
 static const bool DISABLE_CURSOR_ON_MULTITOUCH = true;
+static const bool RELATIVE_FETCH_POS_EACH_FRAME = true;
 
 typedef struct {
   float x, y, width, height;
@@ -44,7 +45,8 @@ TrackpadSettings settings = {
     .jitterThreshold = 1.0,
 };
 CGRect screenBounds;
-CGSize screenSize;
+CGRect* screens;
+uint32_t displayCount;
 CGSize trackpadDigitizerSize;
 
 int mouseEventNumber = 0;
@@ -80,9 +82,19 @@ MTPoint mapToScreen(double normx, double normy) {
   point.x = reverseRectRatio(point.x, screen->x, screen->width);
   point.y = reverseRectRatio(point.y, screen->y, screen->height);
 
-  point.x *= screenSize.width;
-  point.y *= screenSize.height;
+  point.x *= screenBounds.size.width;
+  point.y *= screenBounds.size.height;
   return point;
+}
+
+CGRect* getScreenFromPoint(int x, int y) {
+  for (int i = 0; i < displayCount; i++) {
+    if (x >= screens[i].origin.x && x < screens[i].origin.x + screens[i].size.width &&
+        y >= screens[i].origin.y && y < screens[i].origin.y + screens[i].size.height) {
+      return &screens[i];
+    }
+  }
+  return NULL;// id rather not return NULL to be honest.
 }
 
 void moveCursorToAbs(CGPoint point) { // now we're talking screen
@@ -113,31 +125,27 @@ void moveCursorToAbs(CGPoint point) { // now we're talking screen
 bool relativeWereFingersReleased = false;
 
 void handleRelativeMoveCursor(double normx, double normy) {
-  static CGPoint pivotPointTouch = {0, 0};
-  static CGPoint pivotPointScreen = {0, 0};
-  static double lastX = -1.0;
-  static double lastY = -1.0;
+  static double lastNormX = -1.0;
+  static double lastNormY = -1.0;
+  static CGPoint lastCursorPos = {0, 0};
 
   if (relativeWereFingersReleased) {
-    pivotPointTouch = (CGPoint){normx, normy};
-    CGEventRef locEvent = CGEventCreate(NULL);
-    pivotPointScreen = CGEventGetLocation(locEvent);
-    // printf("pivotPointScreen: %f, %f\n", pivotPointScreen.x,
-    // pivotPointScreen.y); printf("pivotPointTouch: %f, %f\n",
-    // pivotPointTouch.x, pivotPointTouch.y);
-    CFRelease(locEvent);
+    lastNormX = normx;
+    lastNormY = normy;
+    lastCursorPos = CGEventGetLocation(CGEventCreate(NULL));
     relativeWereFingersReleased = false;
-    lastX = -1.0;
-    lastY = -1.0;
     return;
   }
 
-  double dx = normx - pivotPointTouch.x;
-  double dy = normy - pivotPointTouch.y;
+  if (lastNormX < 0.0 || lastNormY < 0.0)
+    return;
+
+  double dx = normx - lastNormX;
+  double dy = normy - lastNormY;
 
   // currently it's technically mapped to full area
-  // dx *= screenSize.width * settings.trackingSensitivity;
-  // dy *= screenSize.height * settings.trackingSensitivity;
+  // dx *= screenBounds.size.width * settings.trackingSensitivity;
+  // dy *= screenBounds.size.height * settings.trackingSensitivity;
   double trackpadAsr = trackpadDigitizerSize.width / trackpadDigitizerSize.height;
   // so currently (dx, dy) is normalized (1,1)
   // we need to convert it to (1, tds.height / tds.width) so that the axes are same sens
@@ -146,30 +154,26 @@ void handleRelativeMoveCursor(double normx, double normy) {
   dx *= settings.trackingSensitivity * 1000;
   dy *= settings.trackingSensitivity * 1000;
 
-  double x = pivotPointScreen.x + dx;
-  double y = pivotPointScreen.y + dy;
+  double x = lastCursorPos.x + dx;
+  double y = lastCursorPos.y + dy;
 
   double threshold = settings.jitterThreshold;
   double alpha = settings.smoothingFactor;
 
-  if (lastX >= 0.0 && lastY >= 0.0) {
-    double ddx = x - lastX;
-    double ddy = y - lastY;
-    double dist2 = ddx * ddx + ddy * ddy;
-
-    if (dist2 < threshold * threshold) {
-      x = lastX;
-      y = lastY;
-    } else {
-      x = lastX + alpha * ddx;
-      y = lastY + alpha * ddy;
-    }
+  double dist2 = dx * dx + dy * dy;
+  if (dist2 < threshold * threshold) {
+    x = lastCursorPos.x;
+    y = lastCursorPos.y;
+  } else {
+    x = lastCursorPos.x + alpha * dx;
+    y = lastCursorPos.y + alpha * dy;
   }
 
-  lastX = x;
-  lastY = y;
-
   moveCursorToAbs((CGPoint){x, y});
+
+  lastNormX = normx;
+  lastNormY = normy;
+  lastCursorPos = (CGPoint){x, y};
 }
 
 void handleAbsoluteMoveCursor(double normx, double normy) {
@@ -207,10 +211,10 @@ void handleAbsoluteMoveCursor(double normx, double normy) {
 
   CGPoint point = (CGPoint){
       .x = x < 0                   ? 0
-           : x >= screenSize.width ? screenSize.width - 1
+           : x >= screenBounds.size.width ? screenBounds.size.width - 1
                                    : x,
       .y = y < 0                    ? 0
-           : y >= screenSize.height ? screenSize.height - 1
+           : y >= screenBounds.size.height ? screenBounds.size.height - 1
                                     : y,
   };
   point.x += screenBounds.origin.x;
@@ -233,12 +237,13 @@ void moveCursor(double normx, double normy) {
 // Simply checking how many fingers touched is not enough.
 // Discard coordinates of the first callback call for each cursor movement
 // and wait for the second call to make sure it is not a gesture.
-int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
-                     double timestamp, size_t frame) {
-#define GESTURE_PHASE_NONE 0
-#define GESTURE_PHASE_MAYSTART 1
-#define GESTURE_PHASE_BEGAN 2
-#define GESTURE_TIMEOUT 0.02
+int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers, double timestamp, size_t frame) {
+  #define GESTURE_PHASE_NONE 0
+  #define GESTURE_PHASE_MAYSTART 1
+  #define GESTURE_PHASE_BEGAN 2
+  #define GESTURE_TIMEOUT 0.02
+  // timestamp arg is in seconds
+  // if touchpad is not touched, this callback is not called. the negated version of this is true aswell
 
   static MTPoint fingerPosition = {0, 0},
                  oldFingerPosition = {0, 0}; // normalized finger positioning
@@ -249,6 +254,8 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
   // FIXME: how many fingers can magic trackpad detect?
   static bool gesturePaths[20] = {0};
 
+  printf("sec: %f\n", timestamp);
+  
   if (nFingers == 0) {
     // all fingers lifted, clearing gesture fingers
     for (int i = 0; i < 20; i++) {
@@ -267,25 +274,31 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
     startTrackTimeStamp = timestamp;
   }
 
+  // we are back to one finger
+  // we must wait another call to ensure this is not a gesture.
   if (oldFingerCount != 1 && nFingers == 1 && !gesturePhase) {
     gesturePhase = GESTURE_PHASE_MAYSTART;
     oldFingerCount = nFingers;
     // lastX = (double) (&data[0])->normalizedVector.position.x;
     // lastY = (double) (&data[0])->normalizedVector.position.y;
+    relativeWereFingersReleased = true;
     return 0;
   };
 
+  // we have not waited the time out yet to ensure this is not a gesture
   if (nFingers == 1 && timestamp - startTrackTimeStamp < GESTURE_TIMEOUT) {
+    relativeWereFingersReleased = true;
     return 0;
   }
 
+  // if we are beginning a gesture
   if (nFingers != 1 && (timestamp - startTrackTimeStamp < GESTURE_TIMEOUT ||
                         gesturePhase != GESTURE_PHASE_NONE)) {
     gesturePhase = GESTURE_PHASE_BEGAN;
     for (int i = 0; i < nFingers; i++) {
       gesturePaths[data[i].pathIndex] = true;
     }
-    if (!(DISABLE_CURSOR_ON_MULTITOUCH && nFingers > 1)) {
+    if (!DISABLE_CURSOR_ON_MULTITOUCH || nFingers <= 1) {
       moveCursor(fingerPosition.x, fingerPosition.y);
     }
     oldFingerCount = nFingers;
@@ -341,7 +354,7 @@ int trackpadCallback(MTDeviceRef device, MTTouch *data, size_t nFingers,
     oldPathIndex = f->pathIndex;
   }
 
-  if (!(DISABLE_CURSOR_ON_MULTITOUCH && nFingers > 1)) {
+  if (!DISABLE_CURSOR_ON_MULTITOUCH || nFingers <= 1) {
     moveCursor(fingerPosition.x, fingerPosition.y);
   }
 
@@ -462,8 +475,20 @@ int main(int argc, char **argv) {
          settings.emitMouseEvent ? "true" : "false");
   printf("[driver] tracking sensitivity: %f\n", settings.trackingSensitivity);
   printf("[driver] display ID: %u\n", (unsigned int)settings.displayId);
+
   screenBounds = CGDisplayBounds(settings.displayId);
-  screenSize = screenBounds.size;
+  screenBounds.size = screenBounds.size;
+
+  CGDirectDisplayID* displayIDs;
+  CGGetActiveDisplayList(0, NULL, &displayCount);
+  displayIDs = malloc(displayCount * sizeof(CGDirectDisplayID));
+  CGGetActiveDisplayList(displayCount, displayIDs, &displayCount);
+  screens = malloc(displayCount * sizeof(CGRect));
+  for (int i = 0; i < displayCount; i++) {
+    screens[i] = CGDisplayBounds(displayIDs[i]);
+  }
+  free(displayIDs);
+  printf("[driver] found %d displays\n", displayCount);
 
   try(pthread_mutex_init(&mouseEventNumber_mutex, NULL));
 
