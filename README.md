@@ -1,16 +1,17 @@
-# trackpaddy
-A trackpad driver for macOS, supporting absolute/relative positioning
+![preview](preview.png)
 
-for aimers and osu! players who want good trackpad feedback.
+rizkia fork to tokaa1/trackpaddy. changes i made:
+- uncomment emit mouse event
+- bump to macos 27
+- default settings:
+  - mapping mode: absolute
+  - region: x 0.5, y 0.25, w 0.5, h 0.5
+  - smoothing factor: 1.00
+  - jitter threshold: 0
+  - emit mouse events: yes
 
-# releases
-None yet!
+[download in releases](https://github.com/Rizkiacry/trackpaddy/releases) (zip), drag and drop to /applications
 
-# dev
-- git clone
-- `make dev`
-
-## credits
-trackpaddy is based off of [`Mac-trackpad-mapper`](https://github.com/lokxii/Mac-trackpad-mapper) by [lokxii](https://github.com/lokxii)! it is MIT licensed so morally and objectively we do the same!
-
-[The MultitouchSupport.h header by Ric da Silva](https://gist.github.com/rmhsilva/61cc45587ed34707da34818a76476e11)
+thanks to:
+- lokxii for c driver
+- tokaa1 for ui, features, and fixes
