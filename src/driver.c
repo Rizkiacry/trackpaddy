@@ -103,6 +103,10 @@ void moveCursorToAbs(CGPoint point) { // now we're talking screen
   if (settings.emitMouseEvent) {
     CGEventRef event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, point,
                                                kCGMouseButtonLeft);
+    if (event == NULL) {
+      CGWarpMouseCursorPosition(point);
+      return;
+    }
     CGEventSetIntegerValueField(event, kCGEventSourceUserData, MAGIC_NUMBER);
     CGEventSetIntegerValueField(event, kCGMouseEventSubtype, 3);
 

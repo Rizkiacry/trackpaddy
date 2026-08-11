@@ -62,7 +62,9 @@ class DriverSettings: Codable {
     init() {
         trackpadArea = Rectangle(from: UserDefaults.standard.string(forKey: "trackpadArea") ?? "0.5,0.25,0.5,0.5")
         screenArea = Rectangle(from: UserDefaults.standard.string(forKey: "screenArea") ?? "0,0,1,1")
-        emitMouseEvent = UserDefaults.standard.object(forKey: "emitMouseEvent") == nil ? true : UserDefaults.standard.bool(forKey: "emitMouseEvent")
+        emitMouseEvent = UserDefaults.standard.object(forKey: "emitMouseEvent") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "emitMouseEvent")
         trackingMode = UserDefaults.standard.string(forKey: "trackingMode") == "Absolute" ? .absolute : .relative
         if (UserDefaults.standard.object(forKey: "displayId") != nil) {
             displayId = UserDefaults.standard.integer(forKey: "displayId")
