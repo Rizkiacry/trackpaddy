@@ -97,29 +97,24 @@ CGRect* getScreenFromPoint(int x, int y) {
   return NULL;// id rather not return NULL to be honest.
 }
 
+// emitMouseEvent causes conflict with the native driver and so with relative and
+// even absolute it causes jitter and stuff
 void moveCursorToAbs(CGPoint point) { // now we're talking screen
-  CGWarpMouseCursorPosition(point);
+  if (settings.emitMouseEvent) {
+    CGEventRef event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, point,
+                                               kCGMouseButtonLeft);
+    CGEventSetIntegerValueField(event, kCGEventSourceUserData, MAGIC_NUMBER);
+    CGEventSetIntegerValueField(event, kCGMouseEventSubtype, 3);
 
-  // below is emitMouseEvents
-  // we are not using it because it causes conflict with the native driver and
-  // so with relative and even absolute it causes jitter and stuff
+    // try(pthread_mutex_lock(&mouseEventNumber_mutex));
+    // CGEventSetIntegerValueField(event, kCGMouseEventNumber, mouseEventNumber);
+    // try(pthread_mutex_unlock(&mouseEventNumber_mutex));
 
-  // CGEventRef event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, point,
-  //                                            kCGMouseButtonLeft);
-  // CGEventSetIntegerValueField(event, kCGEventSourceUserData, MAGIC_NUMBER);
-  // CGEventSetIntegerValueField(event, kCGMouseEventSubtype, 3);
-
-  // // if (settings.mode == RELATIVE) {
-  // //   CGEventSetIntegerValueField(event, kCGMouseEventDeltaX, (int64_t)dx);
-  // //   CGEventSetIntegerValueField(event, kCGMouseEventDeltaY, (int64_t)dy);
-  // // }
-
-  // try(pthread_mutex_lock(&mouseEventNumber_mutex));
-  // CGEventSetIntegerValueField(event, kCGMouseEventNumber, mouseEventNumber);
-  // try(pthread_mutex_unlock(&mouseEventNumber_mutex));
-
-  // CGEventPost(kCGHIDEventTap, event);
-  // CFRelease(event);
+    CGEventPost(kCGHIDEventTap, event);
+    CFRelease(event);
+  } else {
+    CGWarpMouseCursorPosition(point);
+  }
 }
 
 bool relativeWereFingersReleased = false;
