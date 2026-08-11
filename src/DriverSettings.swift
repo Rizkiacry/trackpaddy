@@ -48,7 +48,7 @@ class DriverSettings: Codable {
 
     var trackpadArea: Rectangle? = nil
     var screenArea: Rectangle? = nil
-    var emitMouseEvent: Bool = false
+    var emitMouseEvent: Bool = true
     var trackingMode: TrackingMode = .absolute
     var displayId: Int = 0
     var enabled: Bool = false
@@ -60,9 +60,9 @@ class DriverSettings: Codable {
     var lastSaved: Date? = nil
 
     init() {
-        trackpadArea = Rectangle(from: UserDefaults.standard.string(forKey: "trackpadArea") ?? "0,0,1,1")
+        trackpadArea = Rectangle(from: UserDefaults.standard.string(forKey: "trackpadArea") ?? "0.5,0.25,0.5,0.5")
         screenArea = Rectangle(from: UserDefaults.standard.string(forKey: "screenArea") ?? "0,0,1,1")
-        emitMouseEvent = UserDefaults.standard.bool(forKey: "emitMouseEvent")
+        emitMouseEvent = UserDefaults.standard.object(forKey: "emitMouseEvent") == nil ? true : UserDefaults.standard.bool(forKey: "emitMouseEvent")
         trackingMode = UserDefaults.standard.string(forKey: "trackingMode") == "Absolute" ? .absolute : .relative
         if (UserDefaults.standard.object(forKey: "displayId") != nil) {
             displayId = UserDefaults.standard.integer(forKey: "displayId")
@@ -71,8 +71,8 @@ class DriverSettings: Codable {
             UserDefaults.standard.set(displayId, forKey: "displayId")
         }
         enabled = UserDefaults.standard.bool(forKey: "enabled")
-        smoothingFactor = max(getNumOrDefault(key: "smoothingFactor", defaultValue: 0.9), 0.1)
-        jitterThreshold = getNumOrDefault(key: "jitterThreshold", defaultValue: 1.0)
+        smoothingFactor = max(getNumOrDefault(key: "smoothingFactor", defaultValue: 1.0), 0.1)
+        jitterThreshold = getNumOrDefault(key: "jitterThreshold", defaultValue: 0.0)
         trackingSensitivity = getNumOrDefault(key: "trackingSensitivity", defaultValue: 1.0)
         lockAspectRatio = UserDefaults.standard.bool(forKey: "lockAspectRatio")
     }
