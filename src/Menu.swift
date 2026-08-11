@@ -832,12 +832,12 @@ struct PreferenceView: View {
                 showSlider: true
             )
 
-            // Toggle(isOn: $emitMouseEvent) {
-            //     Text("Emit mouse events")
-            //         .font(Torus.font(11, weight: .medium))
-            //         .foregroundColor(Theme.text)
-            // }
-            // .toggleStyle(TPToggle())
+            Toggle(isOn: $settings.emitMouseEvent) {
+                Text("Emit mouse events")
+                    .font(Torus.font(11, weight: .medium))
+                    .foregroundColor(Theme.text)
+            }
+            .toggleStyle(TPToggle())
 
             Button(action: {
                 updateDriverState()
