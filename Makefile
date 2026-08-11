@@ -11,6 +11,9 @@ APP=trackpaddy.app
 SWIFT_SOURCES=$(wildcard ${SOURCE_DIR}/*.swift)
 UTIL_BIN=${BUILD_DIR}/bin/${UTIL}
 APP_BIN=${BUILD_DIR}/bin/${TARGET}
+ARCH=$(shell uname -m)
+DEPLOYMENT_TARGET?=26.0
+SWIFT_FLAGS=-target ${ARCH}-apple-macosx${DEPLOYMENT_TARGET}
 
 .PHONY: all release dev bundle install install_util_update dirs
 
@@ -31,10 +34,10 @@ ${UTIL_BIN}_release: ${SOURCE_DIR}/${UTIL}.c | dirs
 	gcc ${LIBS} $< -o ${UTIL_BIN} -O3
 
 ${APP_BIN}: ${SWIFT_SOURCES} | dirs
-	swiftc ${SWIFT_SOURCES} -o $@ -g -j$(shell sysctl -n hw.ncpu)
+	swiftc ${SWIFT_FLAGS} ${SWIFT_SOURCES} -o $@ -g -j$(shell sysctl -n hw.ncpu)
 
 ${APP_BIN}_release: ${SWIFT_SOURCES} | dirs
-	swiftc ${SWIFT_SOURCES} -o ${APP_BIN} -O
+	swiftc ${SWIFT_FLAGS} ${SWIFT_SOURCES} -o ${APP_BIN} -O
 
 bundle: ${UTIL_BIN} ${APP_BIN}
 	@mkdir -p ${BUILD_DIR}/${APP}/Contents/MacOS

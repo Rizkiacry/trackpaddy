@@ -6,6 +6,6 @@ import PackageDescription
 let package = Package(
     name: "trackpaddy",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)
     ]
 )
